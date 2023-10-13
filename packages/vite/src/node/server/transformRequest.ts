@@ -313,11 +313,11 @@ async function loadAndTransform(
   }
 
   if (normalizedMap && 'version' in normalizedMap && mod.file) {
-    if ('sections' in normalizedMap) {
-      normalizedMap = (await flattenSourceMap(normalizedMap)) as SourceMap
-    }
     if (normalizedMap.mappings) {
       await injectSourcesContent(normalizedMap, mod.file, logger)
+    }
+    if ('sections' in normalizedMap) {
+      normalizedMap = (await flattenSourceMap(normalizedMap)) as SourceMap
     }
 
     const sourcemapPath = `${mod.file}.map`
