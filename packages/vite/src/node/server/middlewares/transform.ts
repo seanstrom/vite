@@ -20,7 +20,7 @@ import {
 } from '../../utils'
 import { send } from '../send'
 import { ERR_LOAD_URL, transformRequest } from '../transformRequest'
-import { applySourcemapIgnoreList } from '../sourcemap'
+import { applySourcemapIgnoreList, flattenSourceMap } from '../sourcemap'
 import { isHTMLProxy } from '../../plugins/html'
 import {
   DEP_VERSION_RE,
@@ -77,9 +77,13 @@ export function transformMiddleware(
             ? fsPathFromId(url)
             : normalizePath(path.resolve(server.config.root, url.slice(1)))
           try {
-            const map = JSON.parse(
+            let map = JSON.parse(
               await fsp.readFile(sourcemapPath, 'utf-8'),
             ) as ExistingRawSourceMap
+
+            if ('sections' in map) {
+              map = (await flattenSourceMap(map)) as ExistingRawSourceMap
+            }
 
             applySourcemapIgnoreList(
               map,

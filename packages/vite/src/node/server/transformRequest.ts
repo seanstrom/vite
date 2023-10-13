@@ -24,7 +24,11 @@ import {
 } from '../utils'
 import { checkPublicFile } from '../publicDir'
 import { getDepsOptimizer } from '../optimizer'
-import { applySourcemapIgnoreList, injectSourcesContent } from './sourcemap'
+import {
+  applySourcemapIgnoreList,
+  flattenSourceMap,
+  injectSourcesContent,
+} from './sourcemap'
 import { isFileServingAllowed } from './middlewares/static'
 import { throwClosedServerError } from './pluginContainer'
 
@@ -309,6 +313,9 @@ async function loadAndTransform(
   }
 
   if (normalizedMap && 'version' in normalizedMap && mod.file) {
+    if ('sections' in normalizedMap) {
+      normalizedMap = (await flattenSourceMap(normalizedMap)) as SourceMap
+    }
     if (normalizedMap.mappings) {
       await injectSourcesContent(normalizedMap, mod.file, logger)
     }

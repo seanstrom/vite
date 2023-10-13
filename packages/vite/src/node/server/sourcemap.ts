@@ -1,5 +1,11 @@
 import path from 'node:path'
 import fsp from 'node:fs/promises'
+import sourceMap from 'source-map-js'
+import type {
+  RawSourceMap,
+  SourceMapConsumer,
+  SourceMapGenerator,
+} from 'source-map-js'
 import type { ExistingRawSourceMap, SourceMap } from 'rollup'
 import type { Logger } from '../logger'
 import { createDebugger } from '../utils'
@@ -142,4 +148,51 @@ export function applySourcemapIgnoreList(
   if (x_google_ignoreList.length > 0) {
     if (!map.x_google_ignoreList) map.x_google_ignoreList = x_google_ignoreList
   }
+}
+
+export async function flattenSourceMap(
+  rawMap: ExistingRawSourceMap,
+): Promise<ExistingRawSourceMap> {
+  const map = { ...rawMap, version: rawMap.version.toString() } as RawSourceMap
+  const consumer = (await new sourceMap.SourceMapConsumer(
+    map,
+  )) as SourceMapConsumer & { sources: string[] }
+  const generatedMap = (
+    map.file
+      ? new sourceMap.SourceMapGenerator({
+          file: map.file,
+        })
+      : new sourceMap.SourceMapGenerator()
+  ) as SourceMapGenerator & { toJSON: () => ExistingRawSourceMap }
+  const sources = consumer.sources as string[]
+
+  sources.forEach((sourceFile: string) => {
+    const sourceContent = consumer.sourceContentFor(sourceFile, true)
+    generatedMap.setSourceContent(sourceFile, sourceContent)
+  })
+
+  consumer.eachMapping((mapping) => {
+    const { source } = consumer.originalPositionFor({
+      line: mapping.generatedLine,
+      column: mapping.generatedColumn,
+    })
+
+    const mappings = {
+      source,
+      original: {
+        line: mapping.originalLine,
+        column: mapping.originalColumn,
+      },
+      generated: {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn,
+      },
+    }
+
+    if (source) {
+      generatedMap.addMapping(mappings)
+    }
+  })
+
+  return generatedMap.toJSON()
 }
